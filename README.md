@@ -51,5 +51,4 @@ If you want, I can now:
 - produce a ready-to-`git apply` patch that creates this tree in your repo, or
 - generate each file as a downloadable archive, or
 - convert the `fbis_core.c` into a fully-featured compiled binary with Makefile and test harness.
-
-Which of those next steps would you like?
+- help you set up GitHub Actions CI for automatic feed deployment and key rotation.
