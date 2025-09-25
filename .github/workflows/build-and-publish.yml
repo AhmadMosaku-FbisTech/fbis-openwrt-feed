@@ -1,0 +1,93 @@
+name: Build & Publish Feed
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, ath79, mediatek]  # adjust target matrices
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SDK
+        run: |
+          ARCH=${{ matrix.arch }}
+          SDK_TAR="openwrt-sdk-23.05.0-${ARCH}-generic.Linux-x86_64.tar.xz"
+          wget -q "https://downloads.openwrt.org/releases/23.05.0/targets/${ARCH}/generic/${SDK_TAR}"
+          tar -xf ${SDK_TAR}
+          mv openwrt-sdk-* sdk
+      - name: Link feed
+        run: |
+          cd sdk
+          echo "src-link fbis $GITHUB_WORKSPACE" >> feeds.conf
+          ./scripts/feeds update fbis
+          ./scripts/feeds install fbis-firmware
+      - name: Build package
+        run: |
+          cd sdk
+          make package/fbis-firmware/compile V=s || true
+      - name: Collect ipk
+        run: |
+          mkdir -p docs/packages/${{ matrix.arch }}
+          find sdk/bin/ -name "fbis-firmware*.ipk" -exec cp {} docs/packages/${{ matrix.arch }}/ \; || true
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbis-${{ matrix.arch }}
+          path: docs/packages/${{ matrix.arch }}/*.ipk
+
+  index:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: docs/packages
+
+      - name: Flatten packages into docs/packages
+        run: |
+          mkdir -p docs/packages
+          find docs/packages -type f -name "*.ipk" -exec mv {} docs/packages/ \; || true
+
+      - name: Generate Packages index
+        run: |
+          cd docs/packages
+          opkg-make-index . > Packages || true
+          gzip -9c Packages > Packages.gz || true
+
+      - name: Import GPG signing key
+        env:
+          FEED_GPG_PASSPHRASE: ${{ secrets.FEED_GPG_PASSPHRASE }}
+        run: |
+          echo "${{ secrets.FEED_GPG_PRIVATE_KEY }}" > /tmp/feed_private.asc
+          gpg --batch --import /tmp/feed_private.asc
+      - name: Sign Packages
+        run: |
+          # use gpg to create detached signature
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${{ secrets.FEED_GPG_PASSPHRASE }}" \
+            --output docs/packages/Packages.sig --detach-sign docs/packages/Packages
+
+      - name: Copy gpg pubkeys to docs
+        run: |
+          mkdir -p docs/gpg/keys
+          cp -r gpg/keys/* docs/gpg/keys/ || true
+
+      - name: Deploy to GitHub Pages
+        uses: actions/configure-pages@v3
+        with: 
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact for pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs

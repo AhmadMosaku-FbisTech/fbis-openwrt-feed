@@ -1,0 +1,12 @@
+#!/bin/sh
+CONF="/etc/opkg.conf"
+HOOK="option pre-update-script /etc/opkg/keys/update-keys.sh"
+
+if ! grep -qF "$HOOK" "$CONF"; then
+    echo "$HOOK" >> "$CONF"
+    echo "[FBIS] Patched opkg.conf with key updater hook"
+fi
+
+# run once to get initial keys
+/etc/opkg/keys/update-keys.sh || true
+echo "[FBIS] Initial key update attempted"

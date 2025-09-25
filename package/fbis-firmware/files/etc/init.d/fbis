@@ -1,0 +1,16 @@
+#!/bin/sh /etc/rc.common
+# /etc/init.d/fbis
+START=95
+STOP=10
+
+start() {
+  echo "[FBIS] Starting fbis services..."
+  /usr/sbin/fbis_core &
+  /usr/sbin/python3 /usr/sbin/fbisd.py &
+}
+
+stop() {
+  echo "[FBIS] Stopping fbis services..."
+  killall fbis_core 2>/dev/null || true
+  killall fbisd.py 2>/dev/null || true
+}
