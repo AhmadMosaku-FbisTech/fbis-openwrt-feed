@@ -9,8 +9,8 @@ include $(INCLUDE_DIR)/package.mk
 define Package/fbis-firmware
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=FBIS Router Firmware (Carrier Gatekeeper + VPN + Key Updater)
-  DEPENDS:=+iptables +kmod-usb-net +wireguard-tools +python3 +wget-ssl
+  TITLE:=FBIS Router Firmware (Carrier Gatekeeper + VPN + Key Updater + DigitalTwin + Dynamic SIM)
+  DEPENDS:=+iptables +kmod-usb-net +wireguard-tools +python3 +python3-requests +modemmanager +bash+wget-ssl
 endef
 
 define Package/fbis-firmware/description
@@ -33,6 +33,43 @@ define Build/Compile
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/c/fbis_core $(PKG_BUILD_DIR)/bin/
 endef
 
+define Package/$(PKG_NAME)
+  SECTION:=utils
+  CATEGORY:=Utilities
+  TITLE:=FBIS Firmware with Dynamic SIM + VPN + Twin
+  DEPENDS:=+python3 +python3-requests +modemmanager +bash
+endef
+
+define Package/$(PKG_NAME)/description
+  FBIS firmware core for OpenWrt.
+  Provides:
+   - fbis_core (C daemon)
+   - fbisd.py (digital twin sync)
+   - USSD/Dynamic SIM support via ModemManager
+   - VPN setup + firewall hooks
+endef
+
+define Build/Prepare
+    $(CP) ./src/c/* $(PKG_BUILD_DIR)/
+endef
+
+define Build/Compile
+    $(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/fbis_core $(PKG_BUILD_DIR)/fbis_core.c
+endef
+
+define Package/$(PKG_NAME)/install
+    $(INSTALL_DIR) $(1)/usr/sbin
+    $(INSTALL_BIN) $(PKG_BUILD_DIR)/fbis_core $(1)/usr/sbin/
+
+    $(INSTALL_DIR) $(1)/usr/sbin
+    $(INSTALL_BIN) ./package/$(PKG_NAME)/files/usr/sbin/* $(1)/usr/sbin/
+
+    $(INSTALL_DIR) $(1)/etc/init.d
+    $(INSTALL_BIN) ./package/$(PKG_NAME)/files/etc/init.d/fbis $(1)/etc/init.d/
+
+    $(INSTALL_DIR) $(1)/etc/fbis
+    $(INSTALL_CONF) ./package/$(PKG_NAME)/files/etc/fbis/* $(1)/etc/fbis/
+endef
 define Package/fbis-firmware/install
 	# install scripts
 	$(INSTALL_DIR) $(1)/etc/fbis
@@ -57,3 +94,5 @@ define Package/fbis-firmware/install
 endef
 
 $(eval $(call BuildPackage,fbis-firmware))
+
+$(eval $(call BuildPackage,$(PKG_NAME)))
