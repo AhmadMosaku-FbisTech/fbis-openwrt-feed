@@ -3,7 +3,7 @@ set -euo pipefail
 
 KEYDIR="/etc/opkg/keys"
 TMPDIR="$(mktemp -d /tmp/fbis-keys-XXXX)"
-KEYURL="https://<your-org>.github.io/<your-repo>/gpg/keys"
+KEYURL="https://AhmadMosaku-FbisTech.github.io/https://github.com/AhmadMosaku-FbisTech/fbis-openwrt-feed.git/gpg/keys"
 INDEX_URL="$KEYURL/index.html"
 BACKUP_DIR="/etc/opkg/keys.bak"
 LOG_PREFIX="[FBIS-keys]"
